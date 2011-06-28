@@ -10,6 +10,7 @@ struct Inst {
 // opcode
 enum {
   Char = 1,
+  Split,
   Match,
 };
 struct Prog {
@@ -30,6 +31,7 @@ struct Prog* compile(struct Regexp* re) {
   return p;
 }
 void emit(struct Regexp* re) {
+  struct Inst *p1, *p2;
   switch(re->type) {
     default:
       assert(0);
@@ -41,6 +43,16 @@ void emit(struct Regexp* re) {
     case Cat:
       emit(re->left);
       emit(re->right);
+      break;
+    case Plus:
+      p1 = pc;
+      emit(re->left);
+      pc->opcode = Split;
+      pc->x = p1;
+      p2 = pc;
+      pc++;
+      p2->y = pc;
+      break;
   }
 }
 void prog_to_str(char* str, struct Prog* p) {
@@ -58,26 +70,71 @@ void prog_to_str(char* str, struct Prog* p) {
         sprintf(str, "%d. match\n", (int)(pc-p->start));
 	str = str + strlen(str);
 	break;
+      case Split:
+        sprintf(str, "%d. split %d, %d\n",
+	(int)(pc-p->start),(int)(pc->x-p->start), (int)(pc->y-p->start));
+	str = str + strlen(str);
+	break;
     }
+  }
+}
+struct Thread {
+  struct Inst* pc;
+};
+struct Thread thread(struct Inst* pc) {
+struct Thread t = {pc};
+  return t;
+}
+struct ThreadList {
+  int n;
+  struct Thread t[1];
+};
+struct ThreadList* threadlist(int len) {
+  return malloc(sizeof(struct ThreadList) + len * sizeof(struct Thread));
+}
+void addthread(struct ThreadList* l, struct Thread t) {
+  l->t[l->n++] = t;
+  if(Split == t.pc->opcode) {
+    addthread(l, thread(t.pc->x));
+    addthread(l, thread(t.pc->y));
   }
 }
 int is_match(struct Prog* prog,const char* input) {
   const char* sp;
-  struct Inst* pc = prog->start;
+  struct Inst* pc;
   int matched = 0;
-  for(sp = input; sp != '\0'; sp++) {
-    switch(pc->opcode) {
-    case Char:
-      if(*sp != pc->c)
-        goto BreakFor;
-      pc++;
+  struct ThreadList *clist, *nlist, *tlist;
+  int len = prog->len;
+  clist = threadlist(len);
+  nlist = threadlist(len);
+  addthread(clist, thread(prog->start));
+  for(sp = input; ; sp++) {
+    if(clist->n == 0)
       break;
-    case Match:
-      matched = 1;
-      goto BreakFor;
-    }
+    int i;
+    for(i = 0; i < clist->n; i++) {
+      pc = clist->t[i].pc;
+      switch(pc->opcode) {
+        case Char:
+          if(*sp != pc->c)
+            break;
+          //printf("%c", pc->c);
+          addthread(nlist, thread(pc+1));
+          break;
+        case Match:
+          matched = 1;
+          goto BreakFor;
+       }
+     }
+    //printf("\n");
+    BreakFor:
+             tlist = clist;
+	     clist = nlist;
+	     nlist = tlist;
+	     nlist->n = 0;
+	     if(sp == '\0')
+	       break;
   }
-  BreakFor:
             return matched;
 }
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right) {
@@ -163,7 +220,7 @@ reg_to_str(str, re);
 assert(!strcmp("Plus(Lit(a))", str));
 }
 
-void test_compile(void) {
+void test_compile_concat(void) {
   struct Regexp* re = parse("ab");
   assert(4 == re_size());
   struct Prog* prog = compile(re);
@@ -177,7 +234,21 @@ void test_compile(void) {
   assert(!strcmp(expect, str));
 }
 
-void test_is_match(void) {
+void test_compile_plus(void) {
+  struct Regexp* re1 = parse("a+");
+  struct Prog* prog = compile(re1);
+  char str[80];
+  prog_to_str(str, prog);
+//  printf("%s", str);
+  char expect[] =
+  "0. char a\n"
+  "1. split 0, 2\n"
+  "2. match\n"
+  ;
+  assert(!strcmp(expect, str));
+}
+
+void test_is_match_concat(void) {
   char input[] = "ab";
   struct Regexp* re = parse(input);
   struct Prog* prog = compile(re);
@@ -185,11 +256,41 @@ void test_is_match(void) {
   assert(!is_match(prog, "bc"));
 
 }
+void test_add_thread(void) {
+  struct Regexp* re = parse("abcd");
+  struct Prog* prog = compile(re);
+  struct Inst* pc = prog->start;
+  struct ThreadList* list = threadlist(4);
+  addthread(list, thread(pc));
+  addthread(list, thread(pc+1));
+  addthread(list, thread(pc+2));
+  addthread(list, thread(pc+3));
+assert('a' == list->t[0].pc->c);
+assert(Char == list->t[0].pc->opcode);
+assert('b' == list->t[1].pc->c);
+assert(Char == list->t[1].pc->opcode);
+assert('c' == list->t[2].pc->c);
+assert(Char == list->t[2].pc->opcode);
+assert('d' == list->t[3].pc->c);
+assert(Char == list->t[3].pc->opcode);
+}
+void test_is_match_plus(void) {
+  char input[] = "a+b+";
+  struct Regexp* re = parse(input);
+  struct Prog* prog = compile(re);
+  assert(!is_match(prog, "a"));
+  assert(is_match(prog, "aab"));
+  assert(is_match(prog, "aaabb"));
+  assert(!is_match(prog, "b"));
+}
 
 void test(void) {
   test_reg();
   test_parse_concat();
   test_parse_plus();
-  test_compile();
-  test_is_match();
+  test_compile_concat();
+  test_compile_plus();
+  test_add_thread();
+  test_is_match_concat();
+  test_is_match_plus();
 }
