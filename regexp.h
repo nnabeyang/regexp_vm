@@ -14,3 +14,4 @@ enum {
 
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right);
 struct Regexp* parse(const char* source);
+int re_size(void);

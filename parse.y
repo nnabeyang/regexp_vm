@@ -16,14 +16,13 @@ static int count;
 
 %%
 line:concat EOL { 
-//    result = (struct Regexp*)malloc(1 + count * sizeof(struct Regexp*));
     result = $1; return 1;
   }
 ;
 concat: single|
         concat single {
     $$ = reg(Cat, $1, $2);
-    count++;
+    count += 2;
   }
 single: CHAR {
     $$ = reg(Lit, NULL, NULL);
@@ -56,3 +55,5 @@ void yyerror(char* s) {
   fprintf(stderr, "%s\n", s);
   exit(1);
 }
+
+int re_size(void) { return count;}
