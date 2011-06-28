@@ -1,16 +1,4 @@
-#include <stdio.h>
-#include <assert.h>
-#include <stdlib.h>
-struct Regexp {
-  int type;
-  int ch;
-  struct Regexp* left;
-  struct Regexp* right;
-};
-enum {
-  Lit = 1,
-  Cat,
-};
+#include "regexp.h"
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right) {
 struct Regexp* re = (struct Regexp*)malloc(sizeof(struct Regexp));
   re->type = type; re->left = left; re->right = right;
@@ -55,6 +43,17 @@ assert(!strcmp("Cat(Lit(a), Lit(b))", str));
 free(lit1); free(lit2); free(cat);
 }
 
+void test_parse_concat(void) {
+struct Regexp* re1 = parse("a");
+char str[80];
+reg_to_str(str, re1);
+assert(!strcmp("Lit(a)", str));
+struct Regexp* re2 = parse("ab");
+reg_to_str(str, re2);
+assert(!strcmp("Cat(Lit(a), Lit(b))", str));
+}
+
 void test(void) {
   test_reg();
+  test_parse_concat();
 }
