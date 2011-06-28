@@ -61,6 +61,25 @@ void prog_to_str(char* str, struct Prog* p) {
     }
   }
 }
+int is_match(struct Prog* prog,const char* input) {
+  const char* sp;
+  struct Inst* pc = prog->start;
+  int matched = 0;
+  for(sp = input; sp != '\0'; sp++) {
+    switch(pc->opcode) {
+    case Char:
+      if(*sp != pc->c)
+        goto BreakFor;
+      pc++;
+      break;
+    case Match:
+      matched = 1;
+      goto BreakFor;
+    }
+  }
+  BreakFor:
+            return matched;
+}
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right) {
 struct Regexp* re = (struct Regexp*)malloc(sizeof(struct Regexp));
   re->type = type; re->left = left; re->right = right;
@@ -83,8 +102,22 @@ void reg_to_str(char* str, struct Regexp* re) {
   }
 }
 void test(void);
-int main(void) {
-  test();
+int main(int argc, char* argv[]) {
+  if(argc == 2 && !strcmp(argv[1], "test")) {
+    test();
+    return 0;
+  }
+  if(argc < 3) {
+    fprintf(stderr, "usage:%s regexp string...\n", argv[0]);
+    return 1;
+  }
+  struct Regexp* re = parse(argv[1]);
+  struct Prog* prog = compile(re);
+  int i;
+  for(i = 2; i < argc; i++) {
+    if(is_match(prog, argv[i]))
+      printf("%s\n", argv[i]);
+  }
   return 0;
 }
 void test_reg(void) {
@@ -131,8 +164,18 @@ void test_compile(void) {
   assert(!strcmp(expect, str));
 }
 
+void test_is_match(void) {
+  char input[] = "ab";
+  struct Regexp* re = parse(input);
+  struct Prog* prog = compile(re);
+  assert(is_match(prog, input));
+  assert(!is_match(prog, "bc"));
+
+}
+
 void test(void) {
   test_reg();
   test_parse_concat();
   test_compile();
+  test_is_match();
 }
