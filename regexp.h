@@ -10,6 +10,7 @@ struct Regexp {
 enum {
   Lit = 1,
   Cat,
+  Plus,
 };
 
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right);

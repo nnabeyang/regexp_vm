@@ -99,6 +99,12 @@ void reg_to_str(char* str, struct Regexp* re) {
       sprintf(str, "Cat(%s, %s)", lbuf, rbuf);
       break;
       }
+    case Plus: {
+      char buf[80];
+      reg_to_str(buf, re->left);
+      sprintf(str, "Plus(%s)", buf);
+      break;
+      }
   }
 }
 void test(void);
@@ -150,6 +156,13 @@ reg_to_str(str, re2);
 assert(!strcmp("Cat(Lit(a), Lit(b))", str));
 }
 
+void test_parse_plus(void) {
+struct Regexp* re = parse("a+");
+char str[80];
+reg_to_str(str, re);
+assert(!strcmp("Plus(Lit(a))", str));
+}
+
 void test_compile(void) {
   struct Regexp* re = parse("ab");
   assert(4 == re_size());
@@ -176,6 +189,7 @@ void test_is_match(void) {
 void test(void) {
   test_reg();
   test_parse_concat();
+  test_parse_plus();
   test_compile();
   test_is_match();
 }
