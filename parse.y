@@ -4,6 +4,7 @@ void yyerror(char*);
 #include "regexp.h"
 static struct Regexp* result;
 static int count;
+static int nparen;
 %}
 
 %union {
@@ -13,7 +14,6 @@ static int count;
 
 %token <c> CHAR EOL
 %type <re> alt concat repeat single line
-
 %%
 line:alt EOL { 
     result = $1; return 1;
@@ -46,15 +46,22 @@ single: CHAR {
     $$->ch = $1;
     count++;
   }
+| '(' alt ')' {
+    $$ = reg(Paren, $2, NULL);
+    $$->n = ++nparen;
+    count += 2;
+  }
 ;
 %%
 
 static struct Regexp* result;
 static int count;
+static int nparen;
 static const char* input;
 struct Regexp* parse(const char* source) {
   result = NULL;
   count = 0;
+  nparen = 0;
   input = source;
   yyparse();
   return result;
@@ -65,7 +72,7 @@ int yylex(void) {
  if(input == NULL || *input == '\0')
    return EOL;
    c = *input++;
-   if(strchr("+*|",c))
+   if(strchr("+*|()",c))
      return c;
    yylval.c = c;
    return CHAR;

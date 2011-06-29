@@ -5,6 +5,7 @@
 struct Regexp {
   int type;
   int ch;
+  int n;// nparen
   struct Regexp* left;
   struct Regexp* right;
 };
@@ -14,6 +15,7 @@ enum {
   Plus,
   Star,
   Alt,
+  Paren,
 };
 
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right);

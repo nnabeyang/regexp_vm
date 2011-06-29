@@ -207,7 +207,12 @@ void reg_to_str(char* str, struct Regexp* re) {
       sprintf(str, "Star(%s)", buf);
       break;
       }
-
+    case Paren: {
+      char buf[80];
+      reg_to_str(buf, re->left);
+      sprintf(str, "Paren(%d, %s)", re->n, buf);
+      break;
+      }
   }
 }
 void test(void);
@@ -283,6 +288,14 @@ char str[80];
 reg_to_str(str, re);
 //printf("%s\n", str);
 assert(!strcmp("Alt(Lit(a), Lit(b))", str));
+}
+
+void test_parse_paren(void) {
+struct Regexp* re = parse("(a)");
+char str[80];
+reg_to_str(str, re);
+//printf("%s\n", str);
+assert(!strcmp("Paren(1, Lit(a))", str));
 }
 
 void test_compile_concat(void) {
@@ -407,6 +420,7 @@ void test(void) {
   test_parse_plus();
   test_parse_star();
   test_parse_alt();
+  test_parse_paren();
   test_compile_concat();
   test_compile_plus();
   test_compile_star();
