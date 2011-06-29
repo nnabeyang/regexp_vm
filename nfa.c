@@ -11,6 +11,7 @@ struct Inst {
 enum {
   Char = 1,
   Split,
+  Jmp,
   Match,
 };
 struct Prog {
@@ -53,6 +54,15 @@ void emit(struct Regexp* re) {
       pc++;
       p2->y = pc;
       break;
+    case Star:
+      pc->opcode = Split;
+      p1 = pc++;
+      p1->x = pc;
+      emit(re->left);
+      pc->opcode = Jmp;
+      pc->x = p1;
+      pc++;
+      p1->y = pc;
   }
 }
 void prog_to_str(char* str, struct Prog* p) {
@@ -73,6 +83,11 @@ void prog_to_str(char* str, struct Prog* p) {
       case Split:
         sprintf(str, "%d. split %d, %d\n",
 	(int)(pc-p->start),(int)(pc->x-p->start), (int)(pc->y-p->start));
+	str = str + strlen(str);
+	break;
+      case Jmp:
+        sprintf(str, "%d. jmp %d\n",
+	(int)(pc-p->start),(int)(pc->x-p->start));
 	str = str + strlen(str);
 	break;
     }
@@ -215,7 +230,7 @@ char str[80];
 reg_to_str(str, re1);
 assert(!strcmp("Lit(a)", str));
 struct Regexp* re2 = parse("ab");
-  assert(4 == re_size());
+  assert(3 == re_size());
 reg_to_str(str, re2);
 assert(!strcmp("Cat(Lit(a), Lit(b))", str));
 }
@@ -237,7 +252,7 @@ assert(!strcmp("Star(Lit(a))", str));
 
 void test_compile_concat(void) {
   struct Regexp* re = parse("ab");
-  assert(4 == re_size());
+  assert(3 == re_size());
   struct Prog* prog = compile(re);
   char str[80];
   prog_to_str(str, prog);
@@ -261,6 +276,22 @@ void test_compile_plus(void) {
   "2. match\n"
   ;
   assert(!strcmp(expect, str));
+}
+
+void test_compile_star(void) {
+  struct Regexp* re1 = parse("a*");
+  struct Prog* prog = compile(re1);
+  char str[80];
+  prog_to_str(str, prog);
+//  printf("%s", str);
+  char expect[] =
+  "0. split 1, 3\n"
+  "1. char a\n"
+  "2. jmp 0\n"
+  "3. match\n"
+  ;
+  assert(!strcmp(expect, str));
+
 }
 
 void test_is_match_concat(void) {
@@ -306,6 +337,7 @@ void test(void) {
   test_parse_star();
   test_compile_concat();
   test_compile_plus();
+  test_compile_star();
   test_add_thread();
   test_is_match_concat();
   test_is_match_plus();
