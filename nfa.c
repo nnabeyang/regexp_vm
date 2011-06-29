@@ -3,6 +3,7 @@
 struct Inst {
   int opcode;
   int c;
+  int n;// nparen
   struct Inst* x;
   struct Inst* y;
   int gen;
@@ -12,6 +13,7 @@ enum {
   Char = 1,
   Split,
   Jmp,
+  Save,
   Match,
 };
 struct Prog {
@@ -75,6 +77,15 @@ void emit(struct Regexp* re) {
       emit(re->right);
       p2->x = pc;
       break;
+    case Paren:
+      pc->opcode = Save;
+      pc->n = 2*re->n;
+      pc++;
+      emit(re->left);
+      pc->opcode = Save;
+      pc->n = 2*re->n +1;
+      pc++;
+      break;
   }
 }
 void prog_to_str(char* str, struct Prog* p) {
@@ -100,6 +111,11 @@ void prog_to_str(char* str, struct Prog* p) {
       case Jmp:
         sprintf(str, "%d. jmp %d\n",
 	(int)(pc-p->start),(int)(pc->x-p->start));
+	str = str + strlen(str);
+	break;
+      case Save:
+        sprintf(str, "%d. save [%d]\n",
+	(int)(pc-p->start),(int)(pc->n));
 	str = str + strlen(str);
 	break;
     }
@@ -369,6 +385,22 @@ void test_alt(void) {
   free(prog);
 }
 
+void test_compile_paren(void) {
+  struct Regexp* re1 = parse("(a)");
+  struct Prog* prog = compile(re1);
+  char str[80];
+  prog_to_str(str, prog);
+//  printf("%s", str);
+  char expect[] =
+  "0. save [2]\n"
+  "1. char a\n"
+  "2. save [3]\n"
+  "3. match\n"
+  ;
+  assert(!strcmp(expect, str));
+  free(prog);
+}
+
 void test_is_match_concat(void) {
   char input[] = "ab";
   struct Regexp* re = parse(input);
@@ -425,6 +457,7 @@ void test(void) {
   test_compile_plus();
   test_compile_star();
   test_alt();
+  test_compile_paren();
   test_add_thread();
   test_is_match_concat();
   test_is_match_plus();
