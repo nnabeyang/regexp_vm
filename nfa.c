@@ -232,6 +232,12 @@ void reg_to_str(char* str, struct Regexp* re) {
       sprintf(str, "Paren(%d, %s)", re->n, buf);
       break;
       }
+    case Quest: {
+      char buf[80];
+      reg_to_str(buf, re->left);
+      sprintf(str, "Quest(%s)", buf);
+      break;
+      }
   }
 }
 void test(void);
@@ -315,6 +321,14 @@ char str[80];
 reg_to_str(str, re);
 //printf("%s\n", str);
 assert(!strcmp("Paren(1, Lit(a))", str));
+}
+
+void test_parse_quest(void) {
+struct Regexp* re = parse("a?");
+char str[80];
+reg_to_str(str, re);
+//printf("%s\n", str);
+assert(!strcmp("Quest(Lit(a))", str));
 }
 
 void test_compile_concat(void) {
@@ -464,6 +478,7 @@ void test(void) {
   test_parse_star();
   test_parse_alt();
   test_parse_paren();
+  test_parse_quest();
   test_compile_concat();
   test_compile_plus();
   test_compile_star();

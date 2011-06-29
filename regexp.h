@@ -16,6 +16,7 @@ enum {
   Star,
   Alt,
   Paren,
+  Quest,
 };
 
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right);

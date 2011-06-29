@@ -40,6 +40,10 @@ repeat: single
     $$ = reg(Star, $1, NULL);
     count += 2;
   }
+|       single '?' {
+    $$ = reg(Quest, $1, NULL);
+    count += 1;
+  }
 ;
 single: CHAR {
     $$ = reg(Lit, NULL, NULL);
@@ -72,7 +76,7 @@ int yylex(void) {
  if(input == NULL || *input == '\0')
    return EOL;
    c = *input++;
-   if(strchr("+*|()",c))
+   if(strchr("+*|()?",c))
      return c;
    yylval.c = c;
    return CHAR;
