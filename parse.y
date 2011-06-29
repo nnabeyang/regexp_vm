@@ -32,7 +32,7 @@ repeat: single
   }
 |       single '*' {
     $$ = reg(Star, $1, NULL);
-    count += 1;
+    count += 2;
   }
 ;
 single: CHAR {

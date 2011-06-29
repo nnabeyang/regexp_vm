@@ -22,7 +22,7 @@ static struct Inst* pc;
 void emit(struct Regexp* re);
 struct Prog* compile(struct Regexp* re) {
   struct Prog* p;
-  p = malloc(sizeof(*p) + re_size() * sizeof(p->start[0]));
+  p = malloc(sizeof(*p) + (re_size()+1) * sizeof(p->start[0]));
   p->start = (struct Inst*)(p+1);
   pc = p->start;
   emit(re);
@@ -203,10 +203,13 @@ int main(int argc, char* argv[]) {
   }
   struct Regexp* re = parse(argv[1]);
   struct Prog* prog = compile(re);
+  char buf[200];
+  prog_to_str(buf, prog);
+  printf("%s", buf);
   int i;
   for(i = 2; i < argc; i++) {
     if(is_match(prog, argv[i]))
-      printf("%s\n", argv[i]);
+      printf("match:%s\n", argv[i]);
   }
   return 0;
 }
@@ -267,6 +270,10 @@ void test_compile_concat(void) {
   "2. match\n"
   ;
   assert(!strcmp(expect, str));
+  struct Inst* pc;
+  int i, size;
+  size = re_size();
+  free(prog);
 }
 
 void test_compile_plus(void) {
@@ -281,13 +288,15 @@ void test_compile_plus(void) {
   "2. match\n"
   ;
   assert(!strcmp(expect, str));
+  free(prog);
 }
 
 void test_compile_star(void) {
   struct Regexp* re1 = parse("a*");
   struct Prog* prog = compile(re1);
   char str[80];
-  prog_to_str(str, prog);
+
+prog_to_str(str, prog);
 //  printf("%s", str);
   char expect[] =
   "0. split 1, 3\n"
@@ -296,7 +305,8 @@ void test_compile_star(void) {
   "3. match\n"
   ;
   assert(!strcmp(expect, str));
-
+  //printf("count=%d\n", re_size());
+  free(prog);
 }
 
 void test_is_match_concat(void) {
@@ -305,7 +315,7 @@ void test_is_match_concat(void) {
   struct Prog* prog = compile(re);
   assert(is_match(prog, input));
   assert(!is_match(prog, "bc"));
-
+  free(prog);
 }
 void test_add_thread(void) {
   struct Regexp* re = parse("abcd");
@@ -343,7 +353,6 @@ void test_is_match_star(void) {
   assert(is_match(prog, "aaab"));
   assert(!is_match(prog, "aa"));
 }
-
 
 void test(void) {
   test_reg();
