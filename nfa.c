@@ -145,6 +145,9 @@ void addthread(struct ThreadList* l, struct Thread t) {
     case Jmp:
       addthread(l, thread(t.pc->x));
       break;
+    case Save:
+      addthread(l, thread(t.pc + 1));
+      break;
   }
 }
 int is_match(struct Prog* prog,const char* input) {
@@ -446,6 +449,14 @@ void test_is_match_star(void) {
   assert(!is_match(prog, "aa"));
 }
 
+void test_is_match_paren(void) {
+  struct Regexp* re = parse("P(ython|erl)");
+  struct Prog* prog = compile(re);
+  assert(is_match(prog, "Python"));
+  assert(is_match(prog, "Perl"));
+  assert(!is_match(prog, "Ruby"));
+}
+
 void test(void) {
   test_reg();
   test_parse_concat();
@@ -462,4 +473,5 @@ void test(void) {
   test_is_match_concat();
   test_is_match_plus();
   test_is_match_star();
+  test_is_match_paren();
 }
