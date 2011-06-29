@@ -109,9 +109,14 @@ struct ThreadList* threadlist(int len) {
 }
 void addthread(struct ThreadList* l, struct Thread t) {
   l->t[l->n++] = t;
-  if(Split == t.pc->opcode) {
-    addthread(l, thread(t.pc->x));
-    addthread(l, thread(t.pc->y));
+  switch(t.pc->opcode) {
+    case Split:
+      addthread(l, thread(t.pc->x));
+      addthread(l, thread(t.pc->y));
+      break;
+    case Jmp:
+      addthread(l, thread(t.pc->x));
+      break;
   }
 }
 int is_match(struct Prog* prog,const char* input) {
@@ -330,6 +335,16 @@ void test_is_match_plus(void) {
   assert(!is_match(prog, "b"));
 }
 
+void test_is_match_star(void) {
+  char input[] = "a*b";
+  struct Regexp* re = parse(input);
+  struct Prog* prog = compile(re);
+  assert(is_match(prog, "b"));
+  assert(is_match(prog, "aaab"));
+  assert(!is_match(prog, "aa"));
+}
+
+
 void test(void) {
   test_reg();
   test_parse_concat();
@@ -341,4 +356,5 @@ void test(void) {
   test_add_thread();
   test_is_match_concat();
   test_is_match_plus();
+  test_is_match_star();
 }
