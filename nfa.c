@@ -63,6 +63,18 @@ void emit(struct Regexp* re) {
       pc->x = p1;
       pc++;
       p1->y = pc;
+      break;
+    case Alt:
+      pc->opcode = Split;
+      p1 = pc++;
+      p1->x = pc;
+      emit(re->left);
+      pc->opcode = Jmp;
+      p2 = pc++;
+      p1->y = pc;
+      emit(re->right);
+      p2->x = pc;
+      break;
   }
 }
 void prog_to_str(char* str, struct Prog* p) {
@@ -324,6 +336,26 @@ prog_to_str(str, prog);
   free(prog);
 }
 
+void test_alt(void) {
+  struct Regexp* re1 = parse("a|b");
+  struct Prog* prog = compile(re1);
+  char str[80];
+  prog_to_str(str, prog);
+//  printf("%s", str);
+  char expect[] =
+  "0. split 1, 3\n"
+  "1. char a\n"
+  "2. jmp 4\n"
+  "3. char b\n"
+  "4. match\n"
+  ;
+  assert(!strcmp(expect, str));
+  assert(is_match(prog, "a"));
+  assert(is_match(prog, "b"));
+  assert(!is_match(prog, "c"));
+  free(prog);
+}
+
 void test_is_match_concat(void) {
   char input[] = "ab";
   struct Regexp* re = parse(input);
@@ -378,6 +410,7 @@ void test(void) {
   test_compile_concat();
   test_compile_plus();
   test_compile_star();
+  test_alt();
   test_add_thread();
   test_is_match_concat();
   test_is_match_plus();
