@@ -13,6 +13,7 @@ enum {
   Cat,
   Plus,
   Star,
+  Alt,
 };
 
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right);

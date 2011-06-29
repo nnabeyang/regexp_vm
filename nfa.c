@@ -176,6 +176,13 @@ void reg_to_str(char* str, struct Regexp* re) {
       sprintf(str, "Cat(%s, %s)", lbuf, rbuf);
       break;
       }
+    case Alt: {
+      char lbuf[80], rbuf[80];
+      reg_to_str(lbuf, re->left);
+      reg_to_str(rbuf, re->right);
+      sprintf(str, "Alt(%s, %s)", lbuf, rbuf);
+      break;
+      }
     case Plus: {
       char buf[80];
       reg_to_str(buf, re->left);
@@ -256,6 +263,14 @@ char str[80];
 reg_to_str(str, re);
 //printf("%s\n", str);
 assert(!strcmp("Star(Lit(a))", str));
+}
+
+void test_parse_alt(void) {
+struct Regexp* re = parse("a|b");
+char str[80];
+reg_to_str(str, re);
+//printf("%s\n", str);
+assert(!strcmp("Alt(Lit(a), Lit(b))", str));
 }
 
 void test_compile_concat(void) {
@@ -359,6 +374,7 @@ void test(void) {
   test_parse_concat();
   test_parse_plus();
   test_parse_star();
+  test_parse_alt();
   test_compile_concat();
   test_compile_plus();
   test_compile_star();

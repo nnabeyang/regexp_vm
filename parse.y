@@ -12,11 +12,17 @@ static int count;
 }
 
 %token <c> CHAR EOL
-%type <re> concat repeat single line
+%type <re> alt concat repeat single line
 
 %%
-line:concat EOL { 
+line:alt EOL { 
     result = $1; return 1;
+  }
+;
+alt: concat|
+     alt '|' concat {
+    $$ = reg(Alt, $1, $3);
+    count += 2;// Split + Jmp
   }
 ;
 concat: repeat|
@@ -59,7 +65,7 @@ int yylex(void) {
  if(input == NULL || *input == '\0')
    return EOL;
    c = *input++;
-   if(strchr("+*",c))
+   if(strchr("+*|",c))
      return c;
    yylval.c = c;
    return CHAR;
