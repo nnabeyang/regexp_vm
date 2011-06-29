@@ -22,13 +22,19 @@ line:concat EOL {
 concat: repeat|
         concat repeat {
     $$ = reg(Cat, $1, $2);
-    count += 2;
+    count += 1;
   }
-repeat: single|
-        single '+' {
+;
+repeat: single
+|       single '+' {
     $$ = reg(Plus, $1, NULL);
-    count += 2;
+    count += 1;
   }
+|       single '*' {
+    $$ = reg(Star, $1, NULL);
+    count += 1;
+  }
+;
 single: CHAR {
     $$ = reg(Lit, NULL, NULL);
     $$->ch = $1;
@@ -53,7 +59,7 @@ int yylex(void) {
  if(input == NULL || *input == '\0')
    return EOL;
    c = *input++;
-   if(c == '+')
+   if(strchr("+*",c))
      return c;
    yylval.c = c;
    return CHAR;

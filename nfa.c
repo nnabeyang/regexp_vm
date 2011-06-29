@@ -162,6 +162,13 @@ void reg_to_str(char* str, struct Regexp* re) {
       sprintf(str, "Plus(%s)", buf);
       break;
       }
+    case Star: {
+      char buf[80];
+      reg_to_str(buf, re->left);
+      sprintf(str, "Star(%s)", buf);
+      break;
+      }
+
   }
 }
 void test(void);
@@ -218,6 +225,14 @@ struct Regexp* re = parse("a+");
 char str[80];
 reg_to_str(str, re);
 assert(!strcmp("Plus(Lit(a))", str));
+}
+
+void test_parse_star(void) {
+struct Regexp* re = parse("a*");
+char str[80];
+reg_to_str(str, re);
+//printf("%s\n", str);
+assert(!strcmp("Star(Lit(a))", str));
 }
 
 void test_compile_concat(void) {
@@ -288,6 +303,7 @@ void test(void) {
   test_reg();
   test_parse_concat();
   test_parse_plus();
+  test_parse_star();
   test_compile_concat();
   test_compile_plus();
   test_add_thread();
