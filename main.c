@@ -440,4 +440,5 @@ void test(void) {
   test_compile_paren();
   test_quest();
   test_thompson();
+  test_sub();
 }

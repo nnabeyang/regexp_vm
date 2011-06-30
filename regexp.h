@@ -48,3 +48,4 @@ int is_match_thompson(struct Prog*,char*);
 struct Prog* compile(struct Regexp* re);
 // for testing
 void test_thompson(void);
+void test_sub(void);
