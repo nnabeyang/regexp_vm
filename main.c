@@ -86,9 +86,17 @@ static void print_prog(struct Prog* p) {
     switch(pc->opcode) {
       default:
         assert(0);
-      case Char:
-        printf("%2d. char %c\n", (int)(pc-p->start), pc->c);
-	break;
+      case Char: {
+          int addr = (int)(pc-p->start);
+	  char buf[80], *p;
+	  p = buf;
+	  while(pc->opcode == Char)
+	    *p++ = pc++->c;
+	  pc--;
+	  *p = '\0';
+	  printf("%2d. <%s>\n", addr, buf);
+	  break;
+        }
       case Match:
         printf("%2d. match\n", (int)(pc-p->start));
 	break;
