@@ -14,8 +14,10 @@ struct ThreadList* threadlist(int len) {
   return malloc(sizeof(struct ThreadList) + len * sizeof(struct Thread));
 }
 static void addthread(struct ThreadList* l, struct Thread t) {
-  l->t[l->n++] = t;
   switch(t.pc->opcode) {
+    default:
+      l->t[l->n++] = t;
+      break;
     case Split:
       addthread(l, thread(t.pc->x));
       addthread(l, thread(t.pc->y));
