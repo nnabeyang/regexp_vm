@@ -1,25 +1,5 @@
 #include "regexp.h"
 #include <string.h>
-struct Inst {
-  int opcode;
-  int c;
-  int n;// nparen
-  struct Inst* x;
-  struct Inst* y;
-  int gen;
-};
-// opcode
-enum {
-  Char = 1,
-  Split,
-  Jmp,
-  Save,
-  Match,
-};
-struct Prog {
-  struct Inst* start;
-  int len;
-};
 static struct Inst* pc;
 void emit(struct Regexp* re);
 struct Prog* compile(struct Regexp* re) {
@@ -93,9 +73,46 @@ void emit(struct Regexp* re) {
       emit(re->left);
       p1->y = pc;
       break;
+    case Dot:
+      pc->opcode = Any;
+      pc++;
+      break;
   }
 }
-void prog_to_str(char* str, struct Prog* p) {
+static void print_prog(struct Prog* p) {
+  struct Inst *pc, *end;
+  end = p->start + p->len;
+  for(pc = p->start; pc < end; pc++) {
+    switch(pc->opcode) {
+      default:
+        assert(0);
+      case Char:
+        printf("%2d. char %c\n", (int)(pc-p->start), pc->c);
+	break;
+      case Match:
+        printf("%2d. match\n", (int)(pc-p->start));
+	break;
+      case Split:
+        printf("%2d. split %d, %d\n",
+	(int)(pc-p->start),(int)(pc->x-p->start), (int)(pc->y-p->start));
+	break;
+      case Jmp:
+        printf("%2d. jmp %d\n",
+	(int)(pc-p->start),(int)(pc->x-p->start));
+	break;
+      case Save:
+        printf("%2d. save [%d]\n",
+	(int)(pc-p->start),(int)(pc->n));
+	break;
+      case Any:
+        printf("%2d. any\n", (int)(pc-p->start));
+	break;
+    }
+  }
+}
+
+
+static void prog_to_str(char* str, struct Prog* p) {
   struct Inst *pc, *end;
   end = p->start + p->len;
   for(pc = p->start; pc < end; pc++) {
@@ -125,84 +142,20 @@ void prog_to_str(char* str, struct Prog* p) {
 	(int)(pc-p->start),(int)(pc->n));
 	str = str + strlen(str);
 	break;
+      case Any:
+        sprintf(str, "%d. any\n", (int)(pc-p->start));
+	str = str + strlen(str);
+	break;
     }
   }
 }
-struct Thread {
-  struct Inst* pc;
-};
-struct Thread thread(struct Inst* pc) {
-struct Thread t = {pc};
-  return t;
-}
-struct ThreadList {
-  int n;
-  struct Thread t[1];
-};
-struct ThreadList* threadlist(int len) {
-  return malloc(sizeof(struct ThreadList) + len * sizeof(struct Thread));
-}
-void addthread(struct ThreadList* l, struct Thread t) {
-  l->t[l->n++] = t;
-  switch(t.pc->opcode) {
-    case Split:
-      addthread(l, thread(t.pc->x));
-      addthread(l, thread(t.pc->y));
-      break;
-    case Jmp:
-      addthread(l, thread(t.pc->x));
-      break;
-    case Save:
-      addthread(l, thread(t.pc + 1));
-      break;
-  }
-}
-int is_match(struct Prog* prog,char* input) {
-  char* sp;
-  struct Inst* pc;
-  int matched = 0;
-  struct ThreadList *clist, *nlist, *tlist;
-  int len = prog->len;
-  clist = threadlist(len);
-  nlist = threadlist(len);
-  addthread(clist, thread(prog->start));
-  for(sp = input; ; sp++) {
-    if(clist->n == 0)
-      break;
-    int i;
-    for(i = 0; i < clist->n; i++) {
-      pc = clist->t[i].pc;
-      switch(pc->opcode) {
-        case Char:
-          if(*sp != pc->c)
-            break;
-          //printf("%c", pc->c);
-          addthread(nlist, thread(pc+1));
-          break;
-        case Match:
-          matched = 1;
-          goto BreakFor;
-       }
-     }
-    //printf("\n");
-    BreakFor:
-             tlist = clist;
-	     clist = nlist;
-	     nlist = tlist;
-	     nlist->n = 0;
-	     if(sp == '\0')
-	       break;
-  }
-  if(matched)
-    return sp - input;
-            return 0;
-}
+
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right) {
 struct Regexp* re = (struct Regexp*)malloc(sizeof(struct Regexp));
   re->type = type; re->left = left; re->right = right;
   return re;
 }
-void reg_to_str(char* str, struct Regexp* re) {
+static void reg_to_str(char* str, struct Regexp* re) {
   switch(re->type) {
     default:
       assert(0);
@@ -247,8 +200,13 @@ void reg_to_str(char* str, struct Regexp* re) {
       sprintf(str, "Quest(%s)", buf);
       break;
       }
+    case Dot: {
+      strcpy(str, "Dot");
+      break;
+      }
   }
 }
+
 void test(void);
 int main(int argc, char* argv[]) {
   if(argc == 2 && !strcmp(argv[1], "test")) {
@@ -259,11 +217,11 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "usage:%s regexp string...\n", argv[0]);
     return 1;
   }
+int (*is_match)(struct Prog*, char*);
+    is_match = is_match_thompson;
   struct Regexp* re = parse(argv[1]);
   struct Prog* prog = compile(re);
-  char buf[200];
-  prog_to_str(buf, prog);
-  printf("%s", buf);
+  print_prog(prog);
   int i;
   for(i = 2; i < argc; i++) {
     if(is_match(prog, argv[i]))
@@ -271,6 +229,7 @@ int main(int argc, char* argv[]) {
   }
   return 0;
 }
+
 void test_reg(void) {
 struct Regexp* lit1 = reg(Lit, NULL, NULL);
 lit1->ch = 'a';
@@ -340,6 +299,24 @@ reg_to_str(str, re);
 assert(!strcmp("Quest(Lit(a))", str));
 }
 
+void test_dot(void) {
+  struct Regexp* re = parse(".+");
+  char str[80];
+  reg_to_str(str, re);
+  //printf("%s\n", str);
+  assert(!strcmp("Plus(Dot)", str));
+  struct Prog* prog = compile(re);
+  prog_to_str(str, prog);
+//  printf("%s", str);
+  char expect[] =
+  "0. any\n"
+  "1. split 0, 2\n"
+  "2. match\n"
+  ;
+  assert(!strcmp(expect, str));
+  free(prog);
+}
+
 void test_compile_concat(void) {
   struct Regexp* re = parse("ab");
   assert(3 == re_size());
@@ -405,9 +382,6 @@ void test_alt(void) {
   "4. match\n"
   ;
   assert(!strcmp(expect, str));
-  assert(is_match(prog, "a"));
-  assert(is_match(prog, "b"));
-  assert(!is_match(prog, "c"));
   free(prog);
 }
 
@@ -440,66 +414,6 @@ void test_quest(void) {
   ;
   assert(!strcmp(expect, str));
   free(prog);
-  struct Regexp* re2 = parse("ba?");
-  struct Prog* prog2 = compile(re2);
-  assert(2 == is_match(prog2, "b"));
-  assert(3 == is_match(prog2, "ba"));
-  assert(3 == is_match(prog2, "baa"));
-  assert(3 == is_match(prog2, "baaaaa"));
-  assert(!is_match(prog2, "aaaaab"));
-}
-
-void test_is_match_concat(void) {
-  char input[] = "ab";
-  struct Regexp* re = parse(input);
-  struct Prog* prog = compile(re);
-  assert(is_match(prog, input));
-  assert(!is_match(prog, "bc"));
-  free(prog);
-}
-void test_add_thread(void) {
-  struct Regexp* re = parse("abcd");
-  struct Prog* prog = compile(re);
-  struct Inst* pc = prog->start;
-  struct ThreadList* list = threadlist(4);
-  addthread(list, thread(pc));
-  addthread(list, thread(pc+1));
-  addthread(list, thread(pc+2));
-  addthread(list, thread(pc+3));
-assert('a' == list->t[0].pc->c);
-assert(Char == list->t[0].pc->opcode);
-assert('b' == list->t[1].pc->c);
-assert(Char == list->t[1].pc->opcode);
-assert('c' == list->t[2].pc->c);
-assert(Char == list->t[2].pc->opcode);
-assert('d' == list->t[3].pc->c);
-assert(Char == list->t[3].pc->opcode);
-}
-void test_is_match_plus(void) {
-  char input[] = "a+b+";
-  struct Regexp* re = parse(input);
-  struct Prog* prog = compile(re);
-  assert(!is_match(prog, "a"));
-  assert(is_match(prog, "aab"));
-  assert(is_match(prog, "aaabb"));
-  assert(!is_match(prog, "b"));
-}
-
-void test_is_match_star(void) {
-  char input[] = "a*b";
-  struct Regexp* re = parse(input);
-  struct Prog* prog = compile(re);
-  assert(is_match(prog, "b"));
-  assert(is_match(prog, "aaab"));
-  assert(!is_match(prog, "aa"));
-}
-
-void test_is_match_paren(void) {
-  struct Regexp* re = parse("P(ython|erl)");
-  struct Prog* prog = compile(re);
-  assert(is_match(prog, "Python"));
-  assert(is_match(prog, "Perl"));
-  assert(!is_match(prog, "Ruby"));
 }
 
 void test(void) {
@@ -510,15 +424,12 @@ void test(void) {
   test_parse_alt();
   test_parse_paren();
   test_parse_quest();
+  test_dot();
   test_compile_concat();
   test_compile_plus();
   test_compile_star();
   test_alt();
   test_compile_paren();
   test_quest();
-  test_add_thread();
-  test_is_match_concat();
-  test_is_match_plus();
-  test_is_match_star();
-  test_is_match_paren();
+  test_thompson();
 }
