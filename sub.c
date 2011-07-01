@@ -1,9 +1,4 @@
 #include "regexp.h"
-#define MAXSUB 20
-struct Sub {
-  int ref;
-  char* sub[MAXSUB];
-};
 struct Sub* freesub;
 struct Sub* newsub(void) {
   struct Sub* s;

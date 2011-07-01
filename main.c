@@ -79,7 +79,7 @@ void emit(struct Regexp* re) {
       break;
   }
 }
-static void print_prog(struct Prog* p) {
+void print_prog(struct Prog* p) {
   struct Inst *pc, *end;
   end = p->start + p->len;
   for(pc = p->start; pc < end; pc++) {
@@ -163,7 +163,7 @@ struct Regexp* re = (struct Regexp*)malloc(sizeof(struct Regexp));
   re->type = type; re->left = left; re->right = right;
   return re;
 }
-static void reg_to_str(char* str, struct Regexp* re) {
+void reg_to_str(char* str, struct Regexp* re) {
   switch(re->type) {
     default:
       assert(0);
@@ -221,19 +221,44 @@ int main(int argc, char* argv[]) {
     test();
     return 0;
   }
-  if(argc < 3) {
-    fprintf(stderr, "usage:%s regexp string...\n", argv[0]);
+  if(argc < 4) {
+    fprintf(stderr, "usage:%s vm regexp string...\n", argv[0]);
     return 1;
   }
-int (*is_match)(struct Prog*, char*);
-    is_match = is_match_thompson;
-  struct Regexp* re = parse(argv[1]);
+int (*is_match)(struct Prog*, char*, char**);
+    if(!strcmp("thompson", argv[1]))
+      is_match = is_match_thompson;
+    else if(!strcmp("pike", argv[1]))
+      is_match = is_match_pike;
+    else {
+      fprintf(stderr, "no such vm\n");
+      return 1;
+    }
+  struct Regexp* re = parse(argv[2]);
   struct Prog* prog = compile(re);
   print_prog(prog);
   int i;
-  for(i = 2; i < argc; i++) {
-    if(is_match(prog, argv[i]))
+  char* sub[MAXSUB];
+  for(i = 3; i < argc; i++) {
+    if(is_match(prog, argv[i], sub)) {
       printf("match:%s\n", argv[i]);
+    int j;
+    for(j = MAXSUB-1; j > 0; j--)
+      if(sub[j])
+        break;
+      char buf[80], *pbuf;
+      char* p;
+      int k;
+      for(k = 0; k < j; k+=2) {
+	pbuf = buf;
+	char* p = sub[k];
+        while(p != sub[k+1])
+          *pbuf++ = *p++;
+        *pbuf = '\0';
+        printf("$%d=%s:[%d,%d]\n",k+1 ,
+	buf,(int)(sub[k]-argv[i]), (int)(sub[k+1]-argv[i]));
+      }
+    }
   }
   return 0;
 }
@@ -439,6 +464,7 @@ void test(void) {
   test_alt();
   test_compile_paren();
   test_quest();
+  test_pike();
   test_thompson();
   test_sub();
 }
