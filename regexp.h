@@ -40,12 +40,22 @@ struct Prog {
   struct Inst* start;
   int len;
 };
-
+#define MAXSUB 20
+struct Sub {
+  int ref;
+  char* sub[MAXSUB];
+};
+struct Sub* newsub(void);
+void incref(struct Sub*);
+void decref(struct Sub*);
+struct Sub* update(struct Sub*, int, char*);
 struct Regexp* reg(int type, struct Regexp* left, struct Regexp* right);
 struct Regexp* parse(const char* source);
 int re_size(void);
-int is_match_thompson(struct Prog*,char*);
+int is_match_thompson(struct Prog*,char*, char**);
 struct Prog* compile(struct Regexp* re);
 // for testing
 void test_thompson(void);
 void test_sub(void);
+void reg_to_str(char* str, struct Regexp* re);
+void print_prog(struct Prog* p);

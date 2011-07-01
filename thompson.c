@@ -16,7 +16,7 @@ struct ThreadList* threadlist(int len) {
 }
 static void addthread(struct ThreadList* l, struct Thread t) {
   if(t.pc->gen == gen) {
-    printf("gen=%d\n", gen);
+//    printf("gen=%d\n", gen);
     return;
   } else {
     t.pc->gen = gen;
@@ -37,7 +37,7 @@ static void addthread(struct ThreadList* l, struct Thread t) {
       break;
   }
 }
-int is_match_thompson(struct Prog* prog,char* input) {
+int is_match_thompson(struct Prog* prog, char* input, char** subp) {
   char* sp;
   struct Inst* pc;
   int matched = 0;
@@ -45,13 +45,16 @@ int is_match_thompson(struct Prog* prog,char* input) {
   int len = prog->len;
   clist = threadlist(len);
   nlist = threadlist(len);
+  int i;
+  for(i = 0; i < MAXSUB; i++)
+    subp[i] = NULL;
+  subp[0] = input;
   gen++;
   addthread(clist, thread(prog->start));
   for(sp = input; ; sp++) {
     if(clist->n == 0)
       break;
     gen++;
-    int i;
     for(i = 0; i < clist->n; i++) {
       pc = clist->t[i].pc;
       switch(pc->opcode) {
@@ -67,6 +70,7 @@ int is_match_thompson(struct Prog* prog,char* input) {
           break;
         case Match:
           matched = 1;
+	  subp[1] = sp;
           goto BreakFor;
        }
      }
@@ -114,35 +118,41 @@ static void test_dot(void) {
   //printf("%s\n", buf);
   struct Prog* prog = compile(re);
   //print_prog(prog);
-  assert(!is_match_thompson(prog, "a"));
-  assert(is_match_thompson(prog, "aa"));
-  assert(is_match_thompson(prog, "ab"));
+  char* sub[MAXSUB];
+  assert(!is_match_thompson(prog, "a", sub));
+  char* input = "aa";
+  assert(is_match_thompson(prog, input, sub));
+  assert(0 == (int)(sub[0] - input));
+  assert(2 == (int)(sub[1] - input));
+  assert(is_match_thompson(prog, "ab", sub));
 }
 
 static void test_alt(void) {
   struct Regexp* re = parse("a|b");
   struct Prog* prog = compile(re);
-  assert(is_match_thompson(prog, "a"));
-  assert(is_match_thompson(prog, "b"));
-  assert(!is_match_thompson(prog, "c"));
+  char* sub[MAXSUB];
+  assert(is_match_thompson(prog, "a", sub));
+  assert(is_match_thompson(prog, "b", sub));
+  assert(!is_match_thompson(prog, "c", sub));
 }
 
 static void test_quest(void) {
   struct Regexp* re = parse("ba?");
   struct Prog* prog = compile(re);
-  assert(2 == is_match_thompson(prog, "b"));
-  assert(3 == is_match_thompson(prog, "ba"));
-  assert(3 == is_match_thompson(prog, "baa"));
-  assert(3 == is_match_thompson(prog, "baaaaa"));
-  assert(!is_match_thompson(prog, "aaaaab"));
+  char* sub[MAXSUB];
+  assert(2 == is_match_thompson(prog, "b", sub));
+  assert(3 == is_match_thompson(prog, "ba", sub));
+  assert(3 == is_match_thompson(prog, "baa", sub));
+  assert(3 == is_match_thompson(prog, "baaaaa", sub));
+  assert(!is_match_thompson(prog, "aaaaab", sub));
 }
 
 static void test_is_match_thompson_concat(void) {
-  char input[] = "ab";
-  struct Regexp* re = parse(input);
+  struct Regexp* re = parse("ab");
   struct Prog* prog = compile(re);
-  assert(is_match_thompson(prog, input));
-  assert(!is_match_thompson(prog, "bc"));
+  char* sub[MAXSUB];
+  assert(is_match_thompson(prog, "ab", sub));
+  assert(!is_match_thompson(prog, "bc", sub));
   free(prog);
 }
 
@@ -150,28 +160,31 @@ static void test_is_match_thompson_plus(void) {
   char input[] = "a+b+";
   struct Regexp* re = parse(input);
   struct Prog* prog = compile(re);
-  assert(!is_match_thompson(prog, "a"));
-  assert(is_match_thompson(prog, "aab"));
-  assert(is_match_thompson(prog, "aaabb"));
-  assert(!is_match_thompson(prog, "b"));
+  char* sub[MAXSUB];
+  assert(!is_match_thompson(prog, "a", sub));
+  assert(is_match_thompson(prog, "aab", sub));
+  assert(is_match_thompson(prog, "aaabb", sub));
+  assert(!is_match_thompson(prog, "b", sub));
 }
 
 static void test_is_match_thompson_star(void) {
   char input[] = "a*b";
   struct Regexp* re = parse(input);
   struct Prog* prog = compile(re);
-  assert(is_match_thompson(prog, "b"));
-  assert(is_match_thompson(prog, "aaab"));
-  assert(!is_match_thompson(prog, "aa"));
+  char* sub[MAXSUB];
+  assert(is_match_thompson(prog, "b", sub));
+  assert(is_match_thompson(prog, "aaab", sub));
+  assert(!is_match_thompson(prog, "aa", sub));
   free(prog);
 }
 
 static void test_is_match_thompson_paren(void) {
   struct Regexp* re = parse("P(ython|erl)");
   struct Prog* prog = compile(re);
-  assert(is_match_thompson(prog, "Python"));
-  assert(is_match_thompson(prog, "Perl"));
-  assert(!is_match_thompson(prog, "Ruby"));
+  char* sub[MAXSUB];
+  assert(is_match_thompson(prog, "Python", sub));
+  assert(is_match_thompson(prog, "Perl", sub));
+  assert(!is_match_thompson(prog, "Ruby", sub));
   free(prog);
 }
 
