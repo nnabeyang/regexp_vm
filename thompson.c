@@ -1,4 +1,5 @@
 #include "regexp.h"
+static int gen;
 struct Thread {
   struct Inst* pc;
 };
@@ -14,6 +15,12 @@ struct ThreadList* threadlist(int len) {
   return malloc(sizeof(struct ThreadList) + len * sizeof(struct Thread));
 }
 static void addthread(struct ThreadList* l, struct Thread t) {
+  if(t.pc->gen == gen) {
+    printf("gen=%d\n", gen);
+    return;
+  } else {
+    t.pc->gen = gen;
+  }
   switch(t.pc->opcode) {
     default:
       l->t[l->n++] = t;
@@ -38,10 +45,12 @@ int is_match_thompson(struct Prog* prog,char* input) {
   int len = prog->len;
   clist = threadlist(len);
   nlist = threadlist(len);
+  gen++;
   addthread(clist, thread(prog->start));
   for(sp = input; ; sp++) {
     if(clist->n == 0)
       break;
+    gen++;
     int i;
     for(i = 0; i < clist->n; i++) {
       pc = clist->t[i].pc;
@@ -49,10 +58,11 @@ int is_match_thompson(struct Prog* prog,char* input) {
         case Char:
           if(*sp != pc->c)
             break;
-          //printf("%c", pc->c);
+         // printf("%c", *sp);
 	case Any:
 	  if(*sp == '\0')
 	    break;
+         // printf("%c", *sp);
           addthread(nlist, thread(pc+1));
           break;
         case Match:
@@ -60,7 +70,7 @@ int is_match_thompson(struct Prog* prog,char* input) {
           goto BreakFor;
        }
      }
-    //printf("\n");
+   // printf("\n");
     BreakFor:
              tlist = clist;
 	     clist = nlist;
@@ -79,9 +89,13 @@ static void test_add_thread(void) {
   struct Prog* prog = compile(re);
   struct Inst* pc = prog->start;
   struct ThreadList* list = threadlist(4);
+  gen++;
   addthread(list, thread(pc));
+  gen++;
   addthread(list, thread(pc+1));
+  gen++;
   addthread(list, thread(pc+2));
+  gen++;
   addthread(list, thread(pc+3));
 assert('a' == list->t[0].pc->c);
 assert(Char == list->t[0].pc->opcode);
@@ -95,7 +109,11 @@ assert(Char == list->t[3].pc->opcode);
 
 static void test_dot(void) {
   struct Regexp* re = parse("a.+");
+  //char buf[80];
+  //reg_to_str(buf, re);
+  //printf("%s\n", buf);
   struct Prog* prog = compile(re);
+  //print_prog(prog);
   assert(!is_match_thompson(prog, "a"));
   assert(is_match_thompson(prog, "aa"));
   assert(is_match_thompson(prog, "ab"));
