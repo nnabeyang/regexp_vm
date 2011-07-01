@@ -1,0 +1,6 @@
+  Copyright 2011 Noriaki Watanabe.  All Rights Reserved.
+  Use of this source code is governed by a BSD-style
+  license that can be found in the LICENSE file.
+
+this is a toy regular expression engine. 
+the goal of this project is helping to read re1(http://code.google.com/p/re1/).
